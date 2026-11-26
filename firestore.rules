@@ -1,0 +1,266 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global safety net: deny everything by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Hardened Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isOwner(uid) {
+      return isVerifiedUser() && request.auth.uid == uid;
+    }
+
+    function isBootstrapOwner() {
+      return isVerifiedUser() && request.auth.token.email == 'mattionlineservices@gmail.com';
+    }
+
+    function isHouseholdOwner(householdId) {
+      return isVerifiedUser() &&
+        exists(/databases/$(database)/documents/households/$(householdId)) &&
+        get(/databases/$(database)/documents/households/$(householdId)).data.ownerUid == request.auth.uid;
+    }
+
+    function isHouseholdMember(householdId) {
+      return isVerifiedUser() &&
+        exists(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
+    }
+
+    // --- Validation Blueprints ---
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['uid', 'email', 'preferredProfile', 'householdId', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'preferredProfile', 'householdId', 'createdAt', 'updatedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == request.auth.uid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.preferredProfile in ['Matti', 'Diana'] &&
+        isValidId(data.householdId) &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHousehold(data) {
+      return data.keys().hasAll(['id', 'name', 'ownerUid', 'ownerEmail', 'invitedEmails', 'createdAt', 'updatedAt']) &&
+        data.keys().hasOnly(['id', 'name', 'ownerUid', 'ownerEmail', 'invitedEmails', 'createdAt', 'updatedAt']) &&
+        isValidId(data.id) &&
+        data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+        isValidId(data.ownerUid) &&
+        data.ownerEmail is string && data.ownerEmail.size() >= 3 && data.ownerEmail.size() <= 254 &&
+        data.invitedEmails is list &&
+        data.invitedEmails.size() >= 1 &&
+        data.invitedEmails.size() <= 5 &&
+        data.invitedEmails[0] is string &&
+        data.invitedEmails[0].size() <= 254 &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp;
+    }
+
+    function isValidHouseholdMember(data) {
+      return data.keys().hasAll(['uid', 'email', 'profileName', 'role', 'householdOwnerUid', 'joinedAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'profileName', 'role', 'householdOwnerUid', 'joinedAt']) &&
+        isValidId(data.uid) &&
+        data.uid == request.auth.uid &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 254 &&
+        data.profileName in ['Matti', 'Diana'] &&
+        data.role in ['owner', 'member'] &&
+        isValidId(data.householdOwnerUid) &&
+        data.joinedAt is timestamp;
+    }
+
+    function isValidVintedItem(data) {
+      return data.keys().hasAll([
+          'id', 'title', 'description', 'hashtags', 'category', 'brand', 'size',
+          'material', 'color', 'condition', 'priceBargain', 'priceFair', 'priceHigh',
+          'images', 'ownerProfile', 'authorUid', 'memberUids', 'status', 'createdAt', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'title', 'description', 'hashtags', 'category', 'brand', 'size',
+          'material', 'color', 'condition', 'priceBargain', 'priceFair', 'priceHigh',
+          'images', 'ownerProfile', 'authorUid', 'memberUids', 'status', 'soldPrice', 'soldAt',
+          'createdAt', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 140 &&
+        data.description is string && data.description.size() >= 1 && data.description.size() <= 4000 &&
+        data.hashtags is list && data.hashtags.size() <= 12 &&
+        (data.hashtags.size() == 0 || (data.hashtags[0] is string && data.hashtags[0].size() <= 60)) &&
+        data.category is string && data.category.size() >= 1 && data.category.size() <= 200 &&
+        data.brand is string && data.brand.size() >= 1 && data.brand.size() <= 100 &&
+        data.size is string && data.size.size() >= 1 && data.size.size() <= 60 &&
+        data.material is string && data.material.size() >= 1 && data.material.size() <= 120 &&
+        data.color is string && data.color.size() >= 1 && data.color.size() <= 60 &&
+        data.condition in ['Neu mit Etikett', 'Neu ohne Etikett', 'Sehr gut', 'Gut', 'Zufriedenstellend'] &&
+        data.priceBargain is number && data.priceBargain >= 0 && data.priceBargain <= 100000 &&
+        data.priceFair is number && data.priceFair >= 0 && data.priceFair <= 100000 &&
+        data.priceHigh is number && data.priceHigh >= 0 && data.priceHigh <= 100000 &&
+        data.images is list && data.images.size() >= 1 && data.images.size() <= 4 &&
+        data.images[0] is string && data.images[0].size() >= 10 && data.images[0].size() <= 220000 &&
+        data.ownerProfile in ['Matti', 'Diana'] &&
+        isValidId(data.authorUid) &&
+        data.memberUids is list && data.memberUids.size() >= 1 && data.memberUids.size() <= 5 &&
+        data.memberUids[0] is string && data.memberUids[0].size() <= 128 &&
+        data.status in ['available', 'sold'] &&
+        data.createdAt is timestamp &&
+        data.updatedAt is timestamp &&
+        (
+          (data.status == 'available' && !('soldPrice' in data) && !('soldAt' in data)) ||
+          (data.status == 'sold' && data.soldPrice is number && data.soldPrice >= 0 && data.soldPrice <= 100000 && data.soldAt is timestamp)
+        );
+    }
+
+    // --- Collection Rules ---
+
+    // Private User Profiles (PII isolated to owner)
+    match /users/{userId} {
+      allow get: if isValidId(userId) && isOwner(userId);
+      allow create: if isValidId(userId) && isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && isOwner(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['preferredProfile', 'householdId', 'updatedAt']);
+      allow delete: if false;
+    }
+
+    // Shared Household Workspace
+    match /households/{householdId} {
+      allow get: if isValidId(householdId) && isVerifiedUser() && (
+        existing().ownerUid == request.auth.uid ||
+        request.auth.token.email in existing().invitedEmails ||
+        isBootstrapOwner()
+      );
+      allow create: if isValidId(householdId) && isVerifiedUser() &&
+        isValidHousehold(incoming()) &&
+        incoming().id == householdId &&
+        incoming().ownerUid == request.auth.uid &&
+        incoming().ownerEmail == request.auth.token.email &&
+        request.auth.token.email in incoming().invitedEmails &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        existsAfter(/databases/$(database)/documents/households/$(householdId)/members/$(request.auth.uid));
+      allow update: if isValidId(householdId) && isVerifiedUser() &&
+        isValidHousehold(incoming()) &&
+        existing().ownerUid == request.auth.uid &&
+        incoming().id == existing().id &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().ownerEmail == existing().ownerEmail &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'invitedEmails', 'updatedAt']);
+      allow delete: if false;
+
+      // Household Members
+      match /members/{memberId} {
+        allow get: if isValidId(householdId) && isValidId(memberId) && isVerifiedUser() && (
+          memberId == request.auth.uid || isHouseholdOwner(householdId)
+        );
+        allow list: if isVerifiedUser() && (
+          existing().uid == request.auth.uid || existing().householdOwnerUid == request.auth.uid
+        );
+        allow create: if isValidId(householdId) && isValidId(memberId) && isVerifiedUser() &&
+          memberId == request.auth.uid &&
+          isValidHouseholdMember(incoming()) &&
+          incoming().email == request.auth.token.email &&
+          incoming().joinedAt == request.time &&
+          (
+            (incoming().role == 'owner' &&
+              getAfter(/databases/$(database)/documents/households/$(householdId)).data.ownerUid == request.auth.uid &&
+              incoming().householdOwnerUid == request.auth.uid) ||
+            (incoming().role == 'member' &&
+              exists(/databases/$(database)/documents/households/$(householdId)) &&
+              request.auth.token.email in get(/databases/$(database)/documents/households/$(householdId)).data.invitedEmails &&
+              incoming().householdOwnerUid == get(/databases/$(database)/documents/households/$(householdId)).data.ownerUid)
+          );
+        allow update: if isValidId(householdId) && isValidId(memberId) && isVerifiedUser() &&
+          memberId == request.auth.uid &&
+          isValidHouseholdMember(incoming()) &&
+          incoming().uid == existing().uid &&
+          incoming().email == existing().email &&
+          incoming().role == existing().role &&
+          incoming().householdOwnerUid == existing().householdOwnerUid &&
+          incoming().joinedAt == existing().joinedAt &&
+          incoming().diff(existing()).affectedKeys().hasOnly(['profileName']);
+        allow delete: if false;
+      }
+
+      // Synchronized Vinted Inventory Items
+      match /items/{itemId} {
+        allow get: if isValidId(householdId) && isValidId(itemId) && isVerifiedUser() && (
+          request.auth.uid in existing().memberUids || isHouseholdMember(householdId)
+        );
+        allow list: if isVerifiedUser() && request.auth.uid in existing().memberUids;
+        allow create: if isValidId(householdId) && isValidId(itemId) && isVerifiedUser() &&
+          isValidVintedItem(incoming()) &&
+          incoming().id == itemId &&
+          incoming().authorUid == request.auth.uid &&
+          request.auth.uid in incoming().memberUids &&
+          incoming().status == 'available' &&
+          incoming().createdAt == request.time &&
+          incoming().updatedAt == request.time &&
+          isHouseholdMember(householdId);
+        allow update: if isValidId(householdId) && isValidId(itemId) && isVerifiedUser() &&
+          isValidVintedItem(incoming()) &&
+          isHouseholdMember(householdId) &&
+          incoming().id == existing().id &&
+          incoming().authorUid == existing().authorUid &&
+          incoming().ownerProfile == existing().ownerProfile &&
+          incoming().createdAt == existing().createdAt &&
+          incoming().updatedAt == request.time &&
+          existing().status == 'available' &&
+          (
+            // Action 1: Owner marks item as sold (terminal state)
+            (
+              existing().authorUid == request.auth.uid &&
+              incoming().status == 'sold' &&
+              incoming().soldAt == request.time &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['status', 'soldPrice', 'soldAt', 'updatedAt'])
+            ) ||
+            // Action 2: Owner updates listing details while still available
+            (
+              existing().authorUid == request.auth.uid &&
+              incoming().status == 'available' &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'title', 'description', 'hashtags', 'category', 'brand', 'size',
+                'material', 'color', 'condition', 'priceBargain', 'priceFair', 'priceHigh',
+                'images', 'updatedAt'
+              ])
+            ) ||
+            // Action 3: Household member syncs memberUids access list for newly joined member
+            (
+              incoming().status == existing().status &&
+              request.auth.uid in incoming().memberUids &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['memberUids', 'updatedAt'])
+            )
+          );
+        allow delete: if isValidId(householdId) && isValidId(itemId) && isVerifiedUser() &&
+          isHouseholdMember(householdId) &&
+          existing().authorUid == request.auth.uid;
+      }
+    }
+  }
+}

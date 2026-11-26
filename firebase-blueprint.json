@@ -1,0 +1,254 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user workspace membership and preferred profile.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "preferredProfile": {
+          "type": "string",
+          "enum": ["Matti", "Diana"]
+        },
+        "householdId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "preferredProfile", "householdId", "createdAt", "updatedAt"]
+    },
+    "Household": {
+      "title": "Household",
+      "description": "Shared household workspace for Matti and Diana Vinted inventory.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerEmail": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "invitedEmails": {
+          "type": "array",
+          "description": "Allowlisted Google email addresses (max 5) permitted to join this household."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "name", "ownerUid", "ownerEmail", "invitedEmails", "createdAt", "updatedAt"]
+    },
+    "HouseholdMember": {
+      "title": "HouseholdMember",
+      "description": "Verified member record inside a household.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 254
+        },
+        "profileName": {
+          "type": "string",
+          "enum": ["Matti", "Diana"]
+        },
+        "role": {
+          "type": "string",
+          "enum": ["owner", "member"]
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "profileName", "role", "joinedAt"]
+    },
+    "VintedItem": {
+      "title": "VintedItem",
+      "description": "A Vinted listing item analyzed by Gemini Vision and tracked in the shared inventory.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "hashtags": {
+          "type": "array",
+          "description": "5 to 10 Vinted hashtags without boilerplate disclaimers."
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "brand": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "size": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "material": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "color": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "condition": {
+          "type": "string",
+          "enum": ["Neu mit Etikett", "Neu ohne Etikett", "Sehr gut", "Gut", "Zufriedenstellend"]
+        },
+        "priceBargain": {
+          "type": "number"
+        },
+        "priceFair": {
+          "type": "number"
+        },
+        "priceHigh": {
+          "type": "number"
+        },
+        "images": {
+          "type": "array",
+          "description": "1 to 4 compressed JPEG data URLs (each <= 250000 chars)."
+        },
+        "ownerProfile": {
+          "type": "string",
+          "enum": ["Matti", "Diana"]
+        },
+        "authorUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["available", "sold"]
+        },
+        "soldPrice": {
+          "type": "number"
+        },
+        "soldAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "hashtags",
+        "category",
+        "brand",
+        "size",
+        "material",
+        "color",
+        "condition",
+        "priceBargain",
+        "priceFair",
+        "priceHigh",
+        "images",
+        "ownerProfile",
+        "authorUid",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private user workspace preferences (isolated per auth UID)."
+    },
+    "/households/{householdId}": {
+      "schema": { "$ref": "#/entities/Household" },
+      "description": "Shared household workspace document with owner and invited email allowlist."
+    },
+    "/households/{householdId}/members/{memberId}": {
+      "schema": { "$ref": "#/entities/HouseholdMember" },
+      "description": "Authorized household member records keyed by Firebase Auth UID."
+    },
+    "/households/{householdId}/items/{itemId}": {
+      "schema": { "$ref": "#/entities/VintedItem" },
+      "description": "Synchronized Vinted inventory items shared by household members."
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Vinted-Verkaufshelfer",
+  "description": "KI-gestütztes Hilfstool und synchronisiertes Inventarsystem für Matti und Diana zum Verkaufen auf Vinted.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
